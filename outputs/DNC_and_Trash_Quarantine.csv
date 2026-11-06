@@ -1,0 +1,4 @@
+first_name,last_name,phone,email,street_address,last_contact_date,lead_status,estimated_value,compliance_code,job_type,additional_emails,additional_addresses,additional_phones,multiple_properties_on_file,quarantine_reason
+Trash,Record,000-000-00,invalid_email,,,NEW,0,false,repair,,,,,[TRASH] Missing both Phone and Email fields
+Mark,Smith,15559990000,mark@smith.com,456 Elm Ave,05/01/2026,WON,18000,true,replacement,,,,,[DNC] Historical record opted out (Broadcasted to Cluster)
+Mark,Smith,15551112222,mark@smith.com,456 Elm Ave,04/01/2024,ARCHIVED,5000,false,repair,,,,,[DNC] Historical record opted out (Broadcasted to Cluster)

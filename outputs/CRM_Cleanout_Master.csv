@@ -1,0 +1,5 @@
+first_name,last_name,phone,email,street_address,last_contact_date,lead_status,estimated_value,compliance_code,job_type,additional_emails,additional_addresses,additional_phones,multiple_properties_on_file
+John,Doe,15550192831,john.work@gmail.com,123 Main St,03/20/2026,IN_PROGRESS,15000.0,false,replacement,j.doe@gmail.com;johhny@gmail.com,,,No
+Robert,Vance,15558889999,rvance@vance.com,100 Oak Rd,02/10/2026,WON,25000.0,false,commercial,bob@vance.com,200 Pine St,,Yes
+Charlie,Walker,15550192832,,789 Maple Dr,06/15/2023,ARCHIVED,12000.0,false,replacement,,,,No
+Alice,Walker,,alice@walker.com,789 Maple Dr,06/12/2023,IN_PROGRESS,10000.0,false,repair,,,,No

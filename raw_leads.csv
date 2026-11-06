@@ -1,0 +1,10 @@
+First Name,Last Name,Phone Number,email,Address,Last Contact,lead_status,Est. Value,Opt Out,job_type,Mobile Phone
+John,Doe,555-019-2831,"j.doe@gmail.com, johhny@gmail.com",123 Main Street,2026-01-15,WON,12000,false,repair,
+John,Doe,555-019-2831,john.work@gmail.com,123 Main St,2026-03-20,IN_PROGRESS,15000,false,replacement,
+Robert,Vance,555-888-9999,rvance@vance.com,100 Oak Road,2026-02-10,WON,25000,false,commercial,
+Bob,Vance,1555888-9999,bob@vance.com,200 Pine Street,2025-08-15,CLOSED,30000,false,commercial,
+Mark,Smith,555-111-2222,mark@smith.com,456 Elm Ave,2024-04-01,NEW,5000,false,repair,
+Mark,Smith,555-999-0000,mark@smith.com,456 Elm Ave,2026-05-01,WON,18000,true,replacement,555-111-2222
+Alice,Walker,idk,alice@walker.com,789 Maple Dr,2023-06-12,IN_PROGRESS,10000,false,repair,
+Charlie,Walker,555-019-2832,idk,789 Maple Dr,2023-06-15,New,12000,false,replacement,
+Trash,Record,000-000-00,invalid_email,N/A,N/A,NEW,0,false,repair,

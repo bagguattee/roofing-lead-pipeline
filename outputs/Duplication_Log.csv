@@ -1,0 +1,7 @@
+first_name,last_name,phone,email,street_address,last_contact_date,lead_status,estimated_value,compliance_code,job_type,additional_emails,additional_addresses,additional_phones,multiple_properties_on_file,address_has_zip,cluster_id,dedup_reason,quarantine_reason
+Mark,Smith,15559990000,mark@smith.com,456 Elm Ave,05/01/2026,WON,18000,true,replacement,,,,,False,CLUSTER_00001,Master Record,[DNC] Historical record opted out (Broadcasted to Cluster)
+Mark,Smith,15551112222,mark@smith.com,456 Elm Ave,04/01/2024,ARCHIVED,5000,false,repair,,,,,False,CLUSTER_00001,Duplicate: Tier 1 Contact/Name Match,[DNC] Historical record opted out (Broadcasted to Cluster)
+John,Doe,555-019-2831,john.work@gmail.com,123 Main St,03/20/2026,IN_PROGRESS,15000,false,replacement,,,,,False,CLUSTER_00002,Master Record,
+John,Doe,555-019-2831,"j.doe@gmail.com, johhny@gmail.com",123 Main Street,01/15/2026,WON,12000,false,repair,,,,,False,CLUSTER_00002,Duplicate: Tier 1 Contact/Name Match,
+Robert,Vance,555-888-9999,rvance@vance.com,100 Oak Road,02/10/2026,WON,25000,false,commercial,,,,,False,CLUSTER_00003,Master Record,
+Bob,Vance,1555888-9999,bob@vance.com,200 Pine Street,08/15/2025,CLOSED,30000,false,commercial,,,,,False,CLUSTER_00003,Duplicate: Tier 1 Contact/Name Match,
