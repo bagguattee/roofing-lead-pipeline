@@ -112,9 +112,14 @@ The remaining honest list, and the reason `lead-integrity-engine` exists.
 4. **No tests.** `run_sandbox_test.py` prints a column-mapping diagnostic and always
    exits 0 — nothing fails if the pipeline regresses. The 4/3/6 row counts below are
    unverified by any assertion.
-5. **9-pillar sprawl with fossilised config.** `config.py` carries Colorado-specific
-   address assumptions and an AU-era `TARGET_COUNTRY` path; `DEFAULT_ROOF_VALUE` is
-   8511, a magic number rooted in one contractor's pricing.
+5. **9-pillar sprawl, and a multi-market switch only one pillar honours.** `TARGET_COUNTRY` is
+   a real setting, not decoration: `dates.py` parses day-first for `AU` and month-first for
+   `US`, which matters because `03/04` is a different date in each market. But
+   `phone_pillar.py` and `address_pillar.py` were written per-country rather than
+   parameterised, so they are hardcoded US today — five-digit ZIP, `{'CO', 'COLORADO'}` state
+   tokens — and would reject AU input. The switch survived where it was a parameter and was
+   lost where it was duplicated. Also in this category: `DEFAULT_ROOF_VALUE = 8511` is a magic
+   number rooted in one contractor's pricing, applied when a record has no job value.
 6. **Placeholder detection is per-field, not centralised.** Each pillar re-declares
    its own view of what "empty" means, so `INVALID_PLACEHOLDERS` disagrees between
    `main.py` and `loose_and_zombies.py`.
