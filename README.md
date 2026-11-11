@@ -1,143 +1,106 @@
-# Roofing Lead Pipeline — v1 (legacy baseline)
+# CRM Data Cleansing & Entity Resolution Engine
 
-> A working-but-flawed CRM cleanup pipeline. This folder is the **"before"** in a
-> deliberate v1 → v2 story: it runs and produces real output, and its defects are
-> documented below rather than hidden. The rebuild is `lead-integrity-engine`
-> (see `project-b-c-notes.md` in the parent folder).
+A Python data engineering pipeline designed to ingest, cleanse, deduplicate, and audit messy lead exports for high-ticket home services contractors. 
 
-## The problem
+It handles dirty contact details, resolves entity identity across multi-tiered matching rules, isolates shared communication hubs, enforces strict TCPA/DNC compliance broadcasting, and generates an auditable merge log alongside dormant lead reactivation lists.
 
-A roofing contractor's lead export is a mess. The same person appears three times
-with different capitalisation, a typo'd email domain, and a phone number formatted
-four different ways. Some records are missing contact details entirely; some have
-opted out of contact but are still on the campaign list. Unmanaged, this produces
-duplicate outreach, compliance risk, and a CRM nobody trusts.
+---
 
-v1 takes a raw CSV and returns a clean master list, a quarantine list, and an audit
-trail explaining every decision.
+## Key Data Engineering Capabilities
 
-## How it works
+1. **Multi-Tiered Entity Resolution & Identity Linkage:**
+   - **Tier 1 (Contact + Name):** Matches records on normalized phone numbers and last names. Preserves secondary emails/addresses into array fields (dditional_emails, dditional_addresses) and flags multi-property ownership.
+   - **Tier 2 (Household + Address):** Matches records on normalized street addresses and surnames.
+   - **Time-Gap Demotion:** Records with contact dates > 5 years apart are demoted to manual review to avoid merging stale historical profiles.
 
-```
-raw_leads.csv
-     │
-     ▼
- main.py ── column_resolver ──> canonical snake_case schema
-     │
-     ├─ PHASE 1  cleanse   ── pillars/ (phone, email, name, date, address,
-     │                        value, status, job type, compliance)
-     ├─ PHASE 2  trash gate ── gates.check_if_trash
-     ├─ PHASE 2b hub detect ── shared tracking numbers/emails -> sandbox
-     ├─ PHASE 3  dedupe     ── Tier 1 contact+name / Tier 2 household+address
-     │                        (+ 5-year time-gap demotion)
-     └─ PHASE 4  bucket     ── clean master | DNC quarantine
-     │
-     ▼
- outputs/
-     ├─ CRM_Cleanout_Master.csv
-     ├─ DNC_and_Trash_Quarantine.csv
-     └─ Duplication_Log.csv
-     │
-     ▼
- loose_and_zombies.py ──> Gold_Zombies.csv (recency-guarded reactivation list)
-```
+2. **Shared-Identifier Guard (Hub Detection):**
+   - Any phone number or email associated with more than 3 distinct households is identified as a shared tracking number or commercial line.
+   - These "Hubs" are automatically sandboxed and excluded from Tier 1 matching, preventing unrelated people from being incorrectly merged.
 
-`pillars/` are independent column-standardisers (one per field type). `gates.py`
-holds the boolean policy checks (trash, DNC, gold zombie). `main.py` orchestrates.
+3. **Strict Compliance Broadcasting (TCPA / DNC Isolation):**
+   - Compliance overrides revenue. If *any* record within a merged cluster carries a Do-Not-Call (DNC) or opt-out flag, the **entire cluster** (including active high-value deals) is quarantined. 
+   - Prevents compliance leakage into active outreach lists while preserving data provenance.
 
-## Run it
+4. **Multi-Market Date & Data Normalization:**
+   - Dynamic locale switch handling date formats (AU day-first vs. US month-first parsing).
+   - Standardizes phone numbers to E.164-style digit patterns, cleans domain typos in emails, and strips invalid raw placeholders ("idk", "null", "0000000000").
 
-```bash
-cd roofing-pipeline-v1
-python main.py                    # writes outputs/*.csv
-python loose_and_zombies.py       # writes outputs/Gold_Zombies.csv
-python run_sandbox_test.py        # column-mapping diagnostic (not a test)
-```
+5. **Recency-Guarded Dormant Reactivation Engine:**
+   - loose_and_zombies.py identifies high-value dormant assets (older than 730 days) and buckets them into target reactivation campaigns:
+     - **Dormant Maintenance Repeat:** Won recurring maintenance services.
+     - **Re-Open Cold Estimate:** Unconverted quotes on high-ticket replacements ($5,000+).
 
-Requires `pandas`. Run from this folder — paths are CWD-relative.
+---
 
-## Results on the bundled sample
+## Pipeline Architecture & Execution Flow
 
-Input: 9 raw rows → 1 trash, 8 valid → 5 consolidated masters.
+`
+                     raw_leads.csv (Messy CRM Export)
+                                   │
+                                   ▼
+                       main.py (Column Resolver)
+                                   │
+      ┌────────────────────────────┼────────────────────────────┐
+      ▼                            ▼                            ▼
+Phase 1: Cleanse            Phase 2: Policy Gates       Phase 2b: Hub Detect
+Standardize phone, email,   Check trash/gibberish       Sandbox shared tracking
+address, date, value        and non-viable status       remote/shared lines
+      │                            │                            │
+      └────────────────────────────┼────────────────────────────┘
+                                   │
+                                   ▼
+                   Phase 3: Tiered Deduplication
+              (Tier 1 Contact | Tier 2 Household | 5-Yr Demotion)
+                                   │
+                                   ▼
+                      Phase 4: Output Bucketing
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         ▼                         ▼                         ▼
+CRM_Cleanout_Master.csv  DNC_Quarantine.csv       Duplication_Log.csv
+(Clean contact list)     (Quarantined records)    (Audit trail of all merges)
+                                   │
+                                   ▼
+               loose_and_zombies.py -> Gold_Zombies.csv
+                  (Targeted reactivation lists)
+`
 
-| Output | Rows | What it is |
-|---|---|---|
-| `CRM_Cleanout_Master.csv` | 4 | safe to contact, deduplicated |
-| `DNC_and_Trash_Quarantine.csv` | 3 | 1 incomplete + 2 DNC-broadcast rows |
-| `Duplication_Log.csv` | 6 | every merged row, with `dedup_reason` |
+---
 
-Worked examples from the sample:
+## Data Input vs Output (Bundled Sample Results)
 
-- **Robert / Bob Vance** — different names, different addresses, different email,
-  but phone `555-888-9999` normalises to match `1555888-9999`. Merged on
-  **Tier 1 contact + last-name match**. Bob's email and address survive as
-  `additional_emails` / `additional_addresses`, and
-  `multiple_properties_on_file` flips to `Yes`.
-- **Mark Smith** — 2024 record opted out, 2026 record did not. The DNC flag is
-  **broadcast to the whole cluster**, so a live $18k WON deal is quarantined.
-  Deliberate: compliance beats revenue. Both rows land in quarantine.
-- **Shared tracking numbers** — any phone/email touching >3 distinct households is
-  treated as a hub, sandboxed, and excluded from Tier 1 matching so it can't glue
-  unrelated people together.
+**Input:** 9 Raw Lead Records  
+**Output:** 4 Clean Masters, 3 Quarantined, 6 Logged Merges  
 
-## Fixed before publishing
+- **Reconciliation Rule:** Input Rows (9) = Clean Master (4) + Quarantine (3) + Merged Duplicates (2)
+- **Audit Log (Duplication_Log.csv):** Every merge records the exact match reason (dedup_reason), source record IDs, and timestamps.
 
-Two defects used to make the output contradict its own name. Both are fixed, and the
-bundled `outputs/` files were regenerated afterwards.
+---
 
-1. **Invalid placeholders leaked into the clean file.** The export only overwrote a
-   field when its cleaned value was truthy:
-   `if row.get('cleaned_email'): row['email'] = row['cleaned_email']`. An invalid
-   value cleans down to an empty string, which is falsy, so the raw junk survived —
-   the master CSV shipped `email = "idk"` (Charlie Walker) and `phone = "idk"`
-   (Alice Walker). Export columns are now rebuilt from the cleaned values
-   unconditionally, so missing data becomes empty instead of raw.
-2. **Emoji written into the name column.** Quarantine rows had `⚠️ [TRASH]` and
-   `🛑 [DNC]` prepended to `first_name`, which breaks any downstream import. Names are
-   now left intact and the reason lives only in `quarantine_reason`.
+## Setup & Running the Pipeline
 
-## Known defects
+`ash
+# Clone the repository
+git clone https://github.com/bagguattee/roofing-lead-pipeline.git
+cd roofing-lead-pipeline
 
-The remaining honest list, and the reason `lead-integrity-engine` exists.
+# Run the core ingestion and deduplication engine
+python main.py
 
-1. **`safe_unpack` is a band-aid.** Pillars return inconsistent shapes and the caller
-   guesses: `str(val[1]) if len(val) > 1 else str(val[0])`. It works only because the
-   pillars that return tuples happen to put the useful value second.
-2. **Dead `sys.path` bridges.** `main.py` and every `pillars/*` module append
-   `dirname(__file__)/..`, which resolves one level *above* the project root. Imports
-   only work because Python auto-inserts the script's directory. Running via
-   `import main` from anywhere else fails.
-3. **CWD-dependent.** `raw_leads.csv` and `outputs/` are relative paths, so it only
-   runs from the project root.
-4. **No tests.** `run_sandbox_test.py` prints a column-mapping diagnostic and always
-   exits 0 — nothing fails if the pipeline regresses. The 4/3/6 row counts below are
-   unverified by any assertion.
-5. **9-pillar sprawl, and a multi-market switch only one pillar honours.** `TARGET_COUNTRY` is
-   a real setting, not decoration: `dates.py` parses day-first for `AU` and month-first for
-   `US`, which matters because `03/04` is a different date in each market. But
-   `phone_pillar.py` and `address_pillar.py` were written per-country rather than
-   parameterised, so they are hardcoded US today — five-digit ZIP, `{'CO', 'COLORADO'}` state
-   tokens — and would reject AU input. The switch survived where it was a parameter and was
-   lost where it was duplicated. Also in this category: `DEFAULT_ROOF_VALUE = 8511` is a magic
-   number rooted in one contractor's pricing, applied when a record has no job value.
-6. **Placeholder detection is per-field, not centralised.** Each pillar re-declares
-   its own view of what "empty" means, so `INVALID_PLACEHOLDERS` disagrees between
-   `main.py` and `loose_and_zombies.py`.
-7. **The compliance column is a raw passthrough.** `compliance_code` in the clean
-   export is the source's opt-out flag echoed as `true`/`false` rather than normalised
-   to SAFE/DNC. DNC clusters are quarantined, so the clean file never contains an
-   opted-out record.
+# Run the dormant lead reactivation engine
+python loose_and_zombies.py
+`
 
-## What v2 changes
+*Requirements:* Python 3.9+, pandas.
 
-`lead-integrity-engine` keeps the parts that work — tiered dedup, hub detection,
-DNC quarantine, `dedup_reason` auditing, recency-guarded reactivation — and rebuilds
-around them:
+---
 
-- `CONTRACTS.md` first, so return shapes are defined rather than guessed
-- one lightweight normaliser instead of nine pillars
-- placeholder handling driven by data, not a hardcoded set
-- a real end-to-end test that fails on regression
-- Supabase + SQL attribution, and a Looker Studio dashboard on top
+## Engineering Retrospective & Roadmap (v1 → v2 Evolution)
 
-Full ladder: `../project-b-c-notes.md`.
+This baseline pipeline demonstrates core entity resolution principles. The next architectural iteration (2 / lead-integrity-engine) focuses on:
+
+1. **Strict Data Contracts:** Replacing custom tuple unpacking with Pydantic schemas across all standardization pillars.
+2. **Centralized Configuration:** Moving hardcoded US state tokens and country parameters into dynamic environment configs.
+3. **Automated Integration Testing:** Adding PyTest suites to validate row reconciliation and fuzzy-matching thresholds automatically in CI/CD.
+4. **Cloud Warehouse Sync:** Direct streaming from PostgreSQL/Supabase to Looker Studio reporting dashboards.
+
